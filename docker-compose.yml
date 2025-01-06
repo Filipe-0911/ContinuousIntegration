@@ -1,22 +1,45 @@
-version: "3"
-services:
-    postgres:
-        image: "postgres:14"
-        environment:
-            - POSTGRES_USER=root
-            - POSTGRES_PASSWORD=root
-            - POSTGRES_DB=root
-        ports:
-            - "5432:5432"
-        volumes:
-            - ./postgres-data:/var/lib/postgresql/data
+name: CI
 
-    pgadmin-compose:
-        image: dpage/pgadmin4
-        environment:
-            PGADMIN_DEFAULT_EMAIL: "gui@alura.com"
-            PGADMIN_DEFAULT_PASSWORD: "123456"
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:14
         ports:
-            - "15632:80"
-        depends_on:
-            - postgres
+          - 5432:5432
+        env:
+          POSTGRES_USER: root
+          POSTGRES_PASSWORD: root
+          POSTGRES_DB: root
+        options: >-
+          --health-cmd="pg_isready -U root"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: 1.20
+
+    - name: Install dependencies
+      run: go mod tidy
+
+    - name: Run tests
+      env:
+        DB_HOST: localhost
+        DB_USER: root
+        DB_PASSWORD: root
+        DB_NAME: root
+      run: go test -v ./...
